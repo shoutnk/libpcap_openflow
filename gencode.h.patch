@@ -1,0 +1,10 @@
+--- orig/gencode.h	2015-03-09 12:22:07.000000000 -0700
++++ new/gencode.h	2015-12-09 03:14:10.166763255 -0800
+@@ -125,6 +125,7 @@
+ #define Q_RADIO		40
+ 
+ #define Q_CARP		41
++#define Q_OFP       90  // FIXME: is it safe?
+ 
+ /* Directional qualifiers. */
+ 

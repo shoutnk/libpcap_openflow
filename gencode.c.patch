@@ -1,0 +1,72 @@
+--- orig/gencode.c	2015-03-09 12:22:07.000000000 -0700
++++ new/gencode.c	2015-12-09 03:19:13.853958028 -0800
+@@ -4581,6 +4581,9 @@
+ 	case Q_CARP:
+ 		bpf_error("'carp' modifier applied to %s", typestr);
+ 
++    case Q_OFP:
++		bpf_error("'openflow' modifier applied to %s", typestr);
++
+ 	case Q_ATALK:
+ 		bpf_error("ATALK host filtering not implemented");
+ 
+@@ -4924,6 +4927,12 @@
+ 		b1 =  gen_linktype(ETHERTYPE_REVARP);
+ 		break;
+ 
++    case Q_OFP:
++		b0 = gen_proto(IPPROTO_TCP, Q_IP, Q_DEFAULT);
++		b1 = gen_portop(6633, IPPROTO_TCP, Q_DEFAULT);
++        gen_and(b0, b1);
++		break;
++
+ 	case Q_LINK:
+ 		bpf_error("link layer applied in wrong context");
+ 
+@@ -6044,6 +6053,10 @@
+ 		bpf_error("'carp proto' is bogus");
+ 		/* NOTREACHED */
+ 
++	case Q_OFP:
++		bpf_error("'openflow' is bogus");
++		/* NOTREACHED */
++
+ 	case Q_IPV6:
+ 		b0 = gen_linktype(ETHERTYPE_IPV6);
+ #ifndef CHASE_CHAIN
+@@ -6266,7 +6279,8 @@
+ 
+ 	case Q_PORT:
+ 		if (proto != Q_DEFAULT &&
+-		    proto != Q_UDP && proto != Q_TCP && proto != Q_SCTP)
++		    proto != Q_UDP && proto != Q_TCP && proto != Q_SCTP &&
++            proto != Q_OFP)
+ 			bpf_error("illegal qualifier of 'port'");
+ 		if (pcap_nametoport(name, &port, &real_proto) == 0)
+ 			bpf_error("unknown port '%s'", name);
+@@ -6279,7 +6293,7 @@
+ 				/* override PROTO_UNDEF */
+ 				real_proto = IPPROTO_UDP;
+ 		}
+-		if (proto == Q_TCP) {
++		if (proto == Q_TCP || proto == Q_OFP) {
+ 			if (real_proto == IPPROTO_UDP)
+ 				bpf_error("port '%s' is udp", name);
+ 
+@@ -6487,7 +6501,7 @@
+ 	case Q_PORT:
+ 		if (proto == Q_UDP)
+ 			proto = IPPROTO_UDP;
+-		else if (proto == Q_TCP)
++		else if (proto == Q_TCP || proto == Q_OFP)
+ 			proto = IPPROTO_TCP;
+ 		else if (proto == Q_SCTP)
+ 			proto = IPPROTO_SCTP;
+@@ -6857,6 +6871,7 @@
+ 	case Q_PIM:
+ 	case Q_VRRP:
+ 	case Q_CARP:
++    case Q_OFP:
+ 		/*
+ 		 * The offset is relative to the beginning of
+ 		 * the transport-layer header.

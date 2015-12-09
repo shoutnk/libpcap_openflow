@@ -1,0 +1,10 @@
+--- orig/scanner.l	2015-03-09 12:22:07.000000000 -0700
++++ new/scanner.l	2015-12-09 03:20:57.689685101 -0800
+@@ -195,6 +195,7 @@
+ pim		return PIM;
+ vrrp		return VRRP;
+ carp		return CARP;
++openflow    return OPENFLOW;
+ radio		return RADIO;
+ 
+ ip6		return IPV6;
