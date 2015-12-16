@@ -1,40 +1,26 @@
 --- orig/gencode.c	2015-03-09 12:22:07.000000000 -0700
-+++ new/gencode.c	2015-12-09 03:19:13.853958028 -0800
-@@ -4581,6 +4581,9 @@
- 	case Q_CARP:
- 		bpf_error("'carp' modifier applied to %s", typestr);
++++ new/gencode.c	2015-12-16 06:43:44.569866128 -0800
+@@ -129,6 +129,8 @@
+ #include "os-proto.h"
+ #endif
  
-+    case Q_OFP:
-+		bpf_error("'openflow' modifier applied to %s", typestr);
++#include "openflow.h"
 +
- 	case Q_ATALK:
- 		bpf_error("ATALK host filtering not implemented");
+ #define JMP(c) ((c)|BPF_JMP|BPF_K)
  
-@@ -4924,6 +4927,12 @@
+ /* Locals */
+@@ -4924,6 +4926,10 @@
  		b1 =  gen_linktype(ETHERTYPE_REVARP);
  		break;
  
 +    case Q_OFP:
-+		b0 = gen_proto(IPPROTO_TCP, Q_IP, Q_DEFAULT);
-+		b1 = gen_portop(6633, IPPROTO_TCP, Q_DEFAULT);
-+        gen_and(b0, b1);
++        b1 = gen_openflow(-1);
 +		break;
 +
  	case Q_LINK:
  		bpf_error("link layer applied in wrong context");
  
-@@ -6044,6 +6053,10 @@
- 		bpf_error("'carp proto' is bogus");
- 		/* NOTREACHED */
- 
-+	case Q_OFP:
-+		bpf_error("'openflow' is bogus");
-+		/* NOTREACHED */
-+
- 	case Q_IPV6:
- 		b0 = gen_linktype(ETHERTYPE_IPV6);
- #ifndef CHASE_CHAIN
-@@ -6266,7 +6279,8 @@
+@@ -6266,7 +6272,8 @@
  
  	case Q_PORT:
  		if (proto != Q_DEFAULT &&
@@ -44,7 +30,7 @@
  			bpf_error("illegal qualifier of 'port'");
  		if (pcap_nametoport(name, &port, &real_proto) == 0)
  			bpf_error("unknown port '%s'", name);
-@@ -6279,7 +6293,7 @@
+@@ -6279,7 +6286,7 @@
  				/* override PROTO_UNDEF */
  				real_proto = IPPROTO_UDP;
  		}
@@ -53,7 +39,20 @@
  			if (real_proto == IPPROTO_UDP)
  				bpf_error("port '%s' is udp", name);
  
-@@ -6487,7 +6501,7 @@
+@@ -6304,7 +6311,11 @@
+ 		if (port > 65535)
+ 			bpf_error("illegal port number %d > 65535", port);
+ 		b = gen_port(port, real_proto, dir);
+-		gen_or(gen_port6(port, real_proto, dir), b);
++        if (q.proto == Q_OFP) {
++            gen_and(gen_openflow(-1), b);
++        }else {
++            gen_or(gen_port6(port, real_proto, dir), b);
++        }
+ 		return b;
+ 
+ 	case Q_PORTRANGE:
+@@ -6487,7 +6498,7 @@
  	case Q_PORT:
  		if (proto == Q_UDP)
  			proto = IPPROTO_UDP;
@@ -62,11 +61,60 @@
  			proto = IPPROTO_TCP;
  		else if (proto == Q_SCTP)
  			proto = IPPROTO_SCTP;
-@@ -6857,6 +6871,7 @@
- 	case Q_PIM:
- 	case Q_VRRP:
- 	case Q_CARP:
-+    case Q_OFP:
- 		/*
- 		 * The offset is relative to the beginning of
- 		 * the transport-layer header.
+@@ -6502,7 +6513,11 @@
+ 	    {
+ 		struct block *b;
+ 		b = gen_port((int)v, proto, dir);
+-		gen_or(gen_port6((int)v, proto, dir), b);
++        if (q.proto == Q_OFP) {
++            gen_and(gen_openflow(-1), b);
++        }else {
++            gen_or(gen_port6((int)v, proto, dir), b);
++        }
+ 		return b;
+ 	    }
+ 
+@@ -8902,3 +8917,43 @@
+ 	}
+ 	return b1;
+ }
++
++struct block *
++gen_ofversion(offset)
++    struct arth *offset;
++{
++    offset = gen_load(Q_TCP, offset, 1);  // load ofp_version
++
++    return gen_relation(BPF_JEQ, offset, gen_loadi(OFP_VERSION), 0);  // ofp 1.0
++}
++
++struct block *
++gen_openflow(type)
++    int type;
++{
++    struct block *b0;
++    struct arth *offset;  // openflow offset
++
++    offset = gen_load(Q_TCP, gen_loadi(12), 1);
++    offset = gen_arth(BPF_AND, offset, gen_loadi(0xf0));
++    offset = gen_arth(BPF_RSH, offset, gen_loadi(2));
++
++    if (type == -1) {
++        b0 = gen_ofversion(offset);
++    }else {
++        b0 = gen_oftype(offset, type);
++    }
++
++    return b0;
++}
++
++struct block *
++gen_oftype(offset, type)
++    struct arth *offset;
++    int type;
++{
++    offset = gen_arth(BPF_ADD, offset, gen_loadi(1));
++    offset = gen_load(Q_TCP, offset, 1);  // load ofp_type
++
++    return gen_relation(BPF_JEQ, offset, gen_loadi(type), 0);
++}

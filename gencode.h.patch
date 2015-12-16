@@ -1,5 +1,5 @@
 --- orig/gencode.h	2015-03-09 12:22:07.000000000 -0700
-+++ new/gencode.h	2015-12-09 03:14:10.166763255 -0800
++++ new/gencode.h	2015-12-16 06:43:49.633860940 -0800
 @@ -125,6 +125,7 @@
  #define Q_RADIO		40
  
@@ -8,3 +8,14 @@
  
  /* Directional qualifiers. */
  
+@@ -341,6 +342,10 @@
+ struct block *gen_p80211_type(int, int);
+ struct block *gen_p80211_fcdir(int);
+ 
++struct block *gen_openflow(int);
++struct block *gen_ofversion(struct arth *);
++struct block *gen_oftype(struct arth *, int);
++
+ void bpf_optimize(struct block **);
+ void bpf_error(const char *, ...)
+     __attribute__((noreturn))
